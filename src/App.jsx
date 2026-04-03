@@ -20,12 +20,12 @@ const AppInner = () => {
     );
   }
 
-  // Not authenticated
+  // Not authenticated (or wrong domain)
   if (!authState.authenticated) {
-    return <LoginPage onLogin={login} />;
+    return <LoginPage onLogin={login} error={authState.error} />;
   }
 
-  // Authenticated — show app
+  // Authenticated with fruitionservices.io
   return (
     <Box minH="100vh" bg="var(--color-bg)" py={8}>
       <Container maxW="1400px">
@@ -59,8 +59,7 @@ const AppInner = () => {
           >
             <Tabs.Trigger
               value="new"
-              px={6}
-              py={3}
+              px={6} py={3}
               fontWeight="500"
               _selected={{ bg: 'var(--color-primary)', color: 'white' }}
               transition="all 0.2s ease"
@@ -70,8 +69,7 @@ const AppInner = () => {
             </Tabs.Trigger>
             <Tabs.Trigger
               value="history"
-              px={6}
-              py={3}
+              px={6} py={3}
               fontWeight="500"
               _selected={{ bg: 'var(--color-primary)', color: 'white' }}
               transition="all 0.2s ease"
@@ -82,35 +80,14 @@ const AppInner = () => {
           </Tabs.List>
 
           <Tabs.Content value="new">
-            <Box
-              bg="var(--color-surface)"
-              border="1px solid"
-              borderColor="var(--color-border)"
-              borderRadius="xl"
-              p={{ base: 6, md: 8 }}
-              shadow="sm"
-            >
-              <NewInvoice
-                getNextInvoiceNumber={getNextInvoiceNumber}
-                onSave={saveInvoice}
-              />
+            <Box bg="var(--color-surface)" border="1px solid" borderColor="var(--color-border)" borderRadius="xl" p={{ base: 6, md: 8 }} shadow="sm">
+              <NewInvoice getNextInvoiceNumber={getNextInvoiceNumber} onSave={saveInvoice} />
             </Box>
           </Tabs.Content>
 
           <Tabs.Content value="history">
-            <Box
-              bg="var(--color-surface)"
-              border="1px solid"
-              borderColor="var(--color-border)"
-              borderRadius="xl"
-              p={{ base: 6, md: 8 }}
-              shadow="sm"
-            >
-              <InvoiceHistory
-                invoices={invoices}
-                loading={loading}
-                onDelete={deleteInvoice}
-              />
+            <Box bg="var(--color-surface)" border="1px solid" borderColor="var(--color-border)" borderRadius="xl" p={{ base: 6, md: 8 }} shadow="sm">
+              <InvoiceHistory invoices={invoices} loading={loading} onDelete={deleteInvoice} />
             </Box>
           </Tabs.Content>
         </Tabs.Root>

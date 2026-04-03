@@ -1,50 +1,68 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
-const AUTH_KEY = 'fruition_auth';
-const VALID_DOMAIN = 'fruitionservices.io';
-const VALID_PASSWORD = 'Fruition2024!';
+const ALLOWED_DOMAIN = 'fruitionservices.io';
+
+const validateDomain = (email) => {
+  if (!email) return false;
+  return email.toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
+};
 
 export const useAuth = () => {
   const [authState, setAuthState] = useState(null); // null = loading
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(AUTH_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Check expiry (24 hours)
-        if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
-          setAuthState({ authenticated: true, email: parsed.email });
-          return;
+    // Check existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        const email = session.user?.email;
+        if (!validateDomain(email)) {
+          // Wrong domain — sign out immediately
+          supabase.auth.signOut();
+          setAuthState({ authenticated: false, error: `Access restricted to @${ALLOWED_DOMAIN} accounts. You signed in with ${email}.` });
+        } else {
+          setAuthState({ authenticated: true, email });
         }
+      } else {
+        setAuthState({ authenticated: false });
       }
-    } catch (_) {}
-    setAuthState({ authenticated: false });
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        const email = session.user?.email;
+        if (!validateDomain(email)) {
+          supabase.auth.signOut();
+          setAuthState({ authenticated: false, error: `Access restricted to @${ALLOWED_DOMAIN} accounts. You signed in with ${email}.` });
+        } else {
+          setAuthState({ authenticated: true, email });
+        }
+      } else {
+        setAuthState((prev) => ({
+          authenticated: false,
+          error: prev?.error // preserve domain error if present
+        }));
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (email, password) => {
-    const emailLower = email.toLowerCase().trim();
-    const domain = emailLower.split('@')[1];
-
-    if (domain !== VALID_DOMAIN) {
-      return { success: false, error: `Access restricted to @${VALID_DOMAIN} accounts.` };
-    }
-    if (password !== VALID_PASSWORD) {
-      return { success: false, error: 'Incorrect password.' };
-    }
-
-    const session = {
-      email: emailLower,
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24h
-    };
-    localStorage.setItem(AUTH_KEY, JSON.stringify(session));
-    setAuthState({ authenticated: true, email: emailLower });
-    return { success: true };
+  const login = () => {
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          hd: ALLOWED_DOMAIN, // hint Google to show only fruitionservices.io accounts
+        },
+      },
+    });
   };
 
   const logout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    setAuthState({ authenticated: false });
+    return supabase.auth.signOut();
   };
 
   return { authState, login, logout };

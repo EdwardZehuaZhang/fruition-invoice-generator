@@ -1,28 +1,18 @@
 import { useState } from 'react';
-import {
-  Box, VStack, HStack, Input, Button, Text, Heading,
-  Field, Alert
-} from '@chakra-ui/react';
+import { Box, VStack, Button, Text, Heading, Alert } from '@chakra-ui/react';
 
-const LoginPage = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const LoginPage = ({ onLogin, error }) => {
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const handleGoogleLogin = async () => {
     setLoading(true);
-
-    // Small delay for UX
-    await new Promise(r => setTimeout(r, 200));
-
-    const result = onLogin(email, password);
-    if (!result.success) {
-      setError(result.error);
+    try {
+      await onLogin();
+      // Redirect happens automatically via Supabase OAuth
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -35,7 +25,7 @@ const LoginPage = ({ onLogin }) => {
       p={4}
     >
       <Box w="full" maxW="400px">
-        {/* Logo / Brand */}
+        {/* Brand */}
         <VStack gap={2} mb={8} textAlign="center">
           <Box
             w={12}
@@ -53,11 +43,11 @@ const LoginPage = ({ onLogin }) => {
             Fruition Invoice Generator
           </Heading>
           <Text color="var(--color-text-muted)" fontSize="sm">
-            Sign in with your Fruition account
+            Sign in with your Fruition Google account
           </Text>
         </VStack>
 
-        {/* Login Card */}
+        {/* Card */}
         <Box
           bg="var(--color-surface)"
           border="1px solid"
@@ -66,74 +56,45 @@ const LoginPage = ({ onLogin }) => {
           p={8}
           shadow="sm"
         >
-          <form onSubmit={handleSubmit}>
-            <VStack gap={5}>
-              {error && (
-                <Alert.Root status="error" borderRadius="lg">
-                  <Alert.Indicator />
-                  <Alert.Description fontSize="sm">{error}</Alert.Description>
-                </Alert.Root>
-              )}
+          <VStack gap={5}>
+            {error && (
+              <Alert.Root status="error" borderRadius="lg">
+                <Alert.Indicator />
+                <Alert.Description fontSize="sm">{error}</Alert.Description>
+              </Alert.Root>
+            )}
 
-              <Field.Root w="full">
-                <Field.Label fontWeight="500" color="var(--color-text)">
-                  Email
-                </Field.Label>
-                <Input
-                  type="email"
-                  placeholder="you@fruitionservices.io"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  borderColor="var(--color-border)"
-                  _focus={{
-                    borderColor: 'var(--color-primary)',
-                    boxShadow: '0 0 0 1px var(--color-primary)'
-                  }}
-                />
-              </Field.Root>
-
-              <Field.Root w="full">
-                <HStack justify="space-between" w="full">
-                  <Field.Label fontWeight="500" color="var(--color-text)">
-                    Password
-                  </Field.Label>
-                </HStack>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  borderColor="var(--color-border)"
-                  _focus={{
-                    borderColor: 'var(--color-primary)',
-                    boxShadow: '0 0 0 1px var(--color-primary)'
-                  }}
-                />
-              </Field.Root>
-
-              <Button
-                type="submit"
-                w="full"
-                bg="var(--color-primary)"
-                color="white"
-                _hover={{ bg: 'var(--color-primary-hover)' }}
-                loading={loading}
-                loadingText="Signing in..."
-                size="md"
-                fontWeight="600"
-              >
-                Sign in
-              </Button>
-            </VStack>
-          </form>
+            {/* Google sign-in button */}
+            <Button
+              w="full"
+              size="md"
+              variant="outline"
+              borderColor="var(--color-border)"
+              color="var(--color-text)"
+              _hover={{ bg: 'bg.subtle', borderColor: 'var(--color-primary)' }}
+              onClick={handleGoogleLogin}
+              loading={loading}
+              loadingText="Redirecting to Google..."
+              gap={3}
+            >
+              {/* Google G logo SVG */}
+              <Box as="span" flexShrink={0}>
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                  <g fill="none" fillRule="evenodd">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+                    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                  </g>
+                </svg>
+              </Box>
+              Continue with Google
+            </Button>
+          </VStack>
         </Box>
 
         <Text textAlign="center" color="var(--color-text-muted)" fontSize="xs" mt={6}>
-          Access restricted to @fruitionservices.io accounts
+          Access restricted to @fruitionservices.io Google accounts
         </Text>
       </Box>
     </Box>
