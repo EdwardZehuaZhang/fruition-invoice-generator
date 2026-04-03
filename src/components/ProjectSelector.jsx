@@ -1,52 +1,98 @@
-import { useState } from 'react';
-import { Box, Input, VStack, Text } from '@chakra-ui/react';
+import { useState, useEffect, useRef } from 'react';
+import { Box, Input, VStack, Text, Spinner } from '@chakra-ui/react';
 import { Search } from 'lucide-react';
+import { CLOCKIFY_API_KEY, CLOCKIFY_WORKSPACE_ID, CLOCKIFY_BASE_URL } from '../config';
 
-// Static project list — replaces monday.com BoardSDK
-const STATIC_PROJECTS = [
-  { id: '1', name: 'GrooveSheet Platform', companyName: 'Fruition Services', region: 'APAC' },
-  { id: '2', name: 'CarbonSync Digital Transformation', companyName: 'Carbon Sync Ventures', region: 'APAC' },
-  { id: '3', name: 'VIZA Indonesia eVisa', companyName: 'Fruition Services', region: 'APAC' },
-  { id: '4', name: 'Client Portal Migration', companyName: 'Fruition Services', region: 'NA' },
-  { id: '5', name: 'Data Analytics Dashboard', companyName: 'Fruition Services', region: 'NA' },
-  { id: '6', name: 'ERP Integration', companyName: 'Fruition Services', region: 'UK' },
-  { id: '7', name: 'Workflow Automation', companyName: 'Fruition Services', region: 'UK' },
-  { id: '8', name: 'Mobile App Development', companyName: 'Fruition Services', region: 'APAC' },
-  { id: '9', name: 'Cloud Infrastructure Setup', companyName: 'Fruition Services', region: 'NA' },
-  { id: '10', name: 'Custom Reporting Suite', companyName: 'Fruition Services', region: 'UK' },
-];
+const fetchAllProjects = async () => {
+  const projects = [];
+  let page = 1;
+  const pageSize = 50;
+
+  while (true) {
+    const res = await fetch(
+      `${CLOCKIFY_BASE_URL}/workspaces/${CLOCKIFY_WORKSPACE_ID}/projects?page-size=${pageSize}&page=${page}`,
+      { headers: { 'X-Api-Key': CLOCKIFY_API_KEY } }
+    );
+    if (!res.ok) throw new Error(`Clockify API error: ${res.status}`);
+    const data = await res.json();
+    if (!data.length) break;
+    projects.push(...data);
+    if (data.length < pageSize) break;
+    page++;
+  }
+
+  return projects;
+};
 
 const ProjectSelector = ({ region, onSelect, selectedProjects }) => {
+  const [allProjects, setAllProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
 
-  const regionMap = { NA: 'NA', APAC: 'APAC', UK: 'UK' };
+  useEffect(() => {
+    fetchAllProjects()
+      .then(projects => {
+        setAllProjects(projects);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch Clockify projects:', err);
+        setError('Failed to load projects from Clockify');
+        setLoading(false);
+      });
+  }, []);
 
-  const filtered = STATIC_PROJECTS.filter(p => {
-    const matchesRegion = !region || p.region === regionMap[region];
-    const query = searchQuery.trim().toLowerCase();
-    const matchesQuery = !query ||
-      p.name.toLowerCase().includes(query) ||
-      p.companyName.toLowerCase().includes(query);
-    return matchesRegion && matchesQuery;
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = allProjects.filter(p => {
+    if (!searchQuery.trim()) return false;
+    const q = searchQuery.toLowerCase();
+    return (
+      p.name?.toLowerCase().includes(q) ||
+      p.clientName?.toLowerCase().includes(q)
+    );
   });
 
   const handleSelect = (project) => {
     if (!selectedProjects.find(p => p.id === project.id)) {
-      onSelect(project);
-      setSearchQuery('');
+      onSelect({ id: project.id, name: project.name, companyName: project.clientName || '' });
     }
+    setSearchQuery('');
+    setOpen(false);
   };
 
+  const placeholder = loading
+    ? 'Loading Clockify projects...'
+    : error
+    ? 'Failed to load projects'
+    : 'Type to search projects...';
+
   return (
-    <Box position="relative" w="100%">
+    <Box position="relative" w="100%" ref={containerRef}>
       <Box position="relative" w="100%">
         <Box position="absolute" left="3" top="50%" transform="translateY(-50%)" color="fg.muted" zIndex={2}>
-          <Search size={18} />
+          {loading ? <Spinner size="xs" /> : <Search size={18} />}
         </Box>
         <Input
-          placeholder={region ? 'Type to search projects...' : 'Select a region first'}
+          placeholder={placeholder}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => searchQuery && setOpen(true)}
           pl="10"
           w="100%"
           bg="bg.subtle"
@@ -54,11 +100,21 @@ const ProjectSelector = ({ region, onSelect, selectedProjects }) => {
           _hover={{ borderColor: 'border.emphasized' }}
           _focus={{ borderColor: 'var(--color-primary)', boxShadow: '0 0 0 1px var(--color-primary)' }}
           transition="all 0.2s ease"
-          disabled={!region}
+          disabled={loading || !!error}
         />
       </Box>
-      {!region && <Text color="fg.muted" textStyle="sm" mt={1}>Please select a region first</Text>}
-      {searchQuery && region && (
+
+      {error && (
+        <Text color="red.500" fontSize="sm" mt={1}>{error}</Text>
+      )}
+
+      {!loading && !error && allProjects.length > 0 && (
+        <Text color="fg.muted" fontSize="xs" mt={1}>
+          {allProjects.length} projects loaded from Clockify
+        </Text>
+      )}
+
+      {open && searchQuery && !loading && (
         <Box
           position="absolute"
           top="100%"
@@ -75,26 +131,32 @@ const ProjectSelector = ({ region, onSelect, selectedProjects }) => {
           zIndex={1000}
         >
           {filtered.length === 0 ? (
-            <Box p={4}><Text color="fg.muted" textStyle="sm">No projects found</Text></Box>
+            <Box p={4}>
+              <Text color="fg.muted" fontSize="sm">No projects match "{searchQuery}"</Text>
+            </Box>
           ) : (
             <VStack gap={0} align="stretch">
-              {filtered.map(project => (
-                <Box
-                  key={project.id}
-                  p={3}
-                  cursor="pointer"
-                  _hover={{ bg: 'bg.subtle' }}
-                  transition="all 0.2s ease"
-                  onClick={() => handleSelect(project)}
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <Text textStyle="sm" fontWeight="500" color="fg">{project.name}</Text>
-                  {project.companyName && (
-                    <Text textStyle="xs" color="fg.muted" mt={1}>{project.companyName}</Text>
-                  )}
-                </Box>
-              ))}
+              {filtered.map(project => {
+                const alreadySelected = selectedProjects.find(p => p.id === project.id);
+                return (
+                  <Box
+                    key={project.id}
+                    p={3}
+                    cursor={alreadySelected ? 'not-allowed' : 'pointer'}
+                    opacity={alreadySelected ? 0.5 : 1}
+                    _hover={{ bg: alreadySelected ? undefined : 'bg.subtle' }}
+                    transition="all 0.2s ease"
+                    onClick={() => !alreadySelected && handleSelect(project)}
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    <Text fontSize="sm" fontWeight="500" color="fg">{project.name}</Text>
+                    {project.clientName && (
+                      <Text fontSize="xs" color="fg.muted" mt={0.5}>{project.clientName}</Text>
+                    )}
+                  </Box>
+                );
+              })}
             </VStack>
           )}
         </Box>
