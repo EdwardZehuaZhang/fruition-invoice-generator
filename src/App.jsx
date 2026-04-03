@@ -1,21 +1,52 @@
-import { Box, Container, Tabs, Heading } from '@chakra-ui/react';
+import { Box, Container, Tabs, Heading, HStack, Button, Text, Spinner } from '@chakra-ui/react';
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import NewInvoice from './components/NewInvoice';
 import InvoiceHistory from './components/InvoiceHistory';
+import LoginPage from './components/LoginPage';
 import { useInvoiceStorage } from './hooks/useInvoiceStorage';
+import { useAuth } from './hooks/useAuth';
 import './theme-tokens.css';
 
 const AppInner = () => {
+  const { authState, login, logout } = useAuth();
   const { invoices, loading, saveInvoice, deleteInvoice, getNextInvoiceNumber } = useInvoiceStorage();
 
+  // Loading auth state
+  if (authState === null) {
+    return (
+      <Box minH="100vh" display="flex" alignItems="center" justifyContent="center" bg="var(--color-bg)">
+        <Spinner size="lg" color="var(--color-primary)" />
+      </Box>
+    );
+  }
+
+  // Not authenticated
+  if (!authState.authenticated) {
+    return <LoginPage onLogin={login} />;
+  }
+
+  // Authenticated — show app
   return (
     <Box minH="100vh" bg="var(--color-bg)" py={8}>
       <Container maxW="1400px">
-        <Box mb={8}>
+        <HStack justify="space-between" mb={8}>
           <Heading textStyle="3xl" fontWeight="700" color="var(--color-text)">
             Fruition Invoice Generator
           </Heading>
-        </Box>
+          <HStack gap={3}>
+            <Text fontSize="sm" color="var(--color-text-muted)">{authState.email}</Text>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={logout}
+              borderColor="var(--color-border)"
+              color="var(--color-text-muted)"
+              _hover={{ bg: 'bg.subtle' }}
+            >
+              Sign out
+            </Button>
+          </HStack>
+        </HStack>
 
         <Tabs.Root defaultValue="new" variant="enclosed">
           <Tabs.List
