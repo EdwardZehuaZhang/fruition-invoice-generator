@@ -13,31 +13,100 @@ const regionOptions = createListCollection({
   ]
 });
 
+const currencyOptions = createListCollection({
+  items: [
+    { label: 'USD', value: 'USD' },
+    { label: 'SGD', value: 'SGD' },
+    { label: 'AUD', value: 'AUD' },
+    { label: 'GBP', value: 'GBP' },
+    { label: 'EUR', value: 'EUR' },
+  ]
+});
+
 const regionAddresses = {
   NA: 'Fruition Services Inc\n1 Beaux Arts Ln, Halesite NY 11743, United States',
   APAC: 'Fruition Services Pty Ltd\n12/64 York Street, Sydney NSW 2000, Australia',
   UK: 'Fruition Services Limited\nC/O Gpc Financial Management\n423 Linen Hall, 162-168 Regent Street\nLondon, United Kingdom, W1B 5TE'
 };
 
+const generateMonthOptions = () => {
+  const options = [];
+  const now = new Date();
+  for (let i = -12; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const label = d.toLocaleString('default', { month: 'short' }) + ' ' + year;
+    options.push({ value: year + '-' + month, label });
+  }
+  return options.reverse();
+};
+
+const monthToBillingPeriod = (yearMonth) => {
+  if (!yearMonth) return '';
+  const parts = yearMonth.split('-').map(Number);
+  const year = parts[0];
+  const month = parts[1];
+  const lastDay = new Date(year, month, 0).getDate();
+  const pad = (n) => String(n).padStart(2, '0');
+  return pad(1) + '/' + pad(month) + '/' + year + ' to ' + pad(lastDay) + '/' + pad(month) + '/' + year;
+};
+
+const getCurrentYearMonth = () => {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+};
+
+const monthOptions = generateMonthOptions();
+
 const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
-  const [consultant, setConsultant] = useState('');
+  const [consultant, setConsultant] = useState('Edward (Zehua) Zhang');
   const [consultantAddress, setConsultantAddress] = useState('');
   const [consultantPhone, setConsultantPhone] = useState('');
   const [consultantEmail, setConsultantEmail] = useState('');
   const [wiseName, setWiseName] = useState('');
   const [wiseTag, setWiseTag] = useState('');
-  const [region, setRegion] = useState('');
+  const [region, setRegion] = useState('APAC');
   const [invoiceNo, setInvoiceNo] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [billingFrom, setBillingFrom] = useState('');
-  const [billingTo, setBillingTo] = useState('');
+  const [billingMonth, setBillingMonth] = useState(getCurrentYearMonth());
   const [lineItems, setLineItems] = useState([]);
   const [notes, setNotes] = useState('');
   const [selectedProjects, setSelectedProjects] = useState([]);
+  const [currency, setCurrency] = useState(() => localStorage.getItem('fruition_currency') || 'USD');
+  const [profileSaved, setProfileSaved] = useState(false);
 
   useEffect(() => {
     setInvoiceNo(getNextInvoiceNumber());
+    try {
+      const saved = localStorage.getItem('fruition_consultant_profile');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.consultant) setConsultant(p.consultant);
+        if (p.consultantAddress) setConsultantAddress(p.consultantAddress);
+        if (p.consultantPhone) setConsultantPhone(p.consultantPhone);
+        if (p.consultantEmail) setConsultantEmail(p.consultantEmail);
+        if (p.wiseName) setWiseName(p.wiseName);
+        if (p.wiseTag) setWiseTag(p.wiseTag);
+        if (p.region) setRegion(p.region);
+      }
+    } catch (e) {
+      console.warn('Failed to load consultant profile', e);
+    }
   }, []);
+
+  const handleSaveProfile = () => {
+    localStorage.setItem('fruition_consultant_profile', JSON.stringify({
+      consultant, consultantAddress, consultantPhone, consultantEmail, wiseName, wiseTag, region
+    }));
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
+  };
+
+  const handleCurrencyChange = (val) => {
+    setCurrency(val);
+    localStorage.setItem('fruition_currency', val);
+  };
 
   const addProjectLine = (project) => {
     setSelectedProjects([...selectedProjects, project]);
@@ -82,13 +151,13 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
+    return day + '/' + month + '/' + year;
   };
 
   const buildInvoice = () => ({
     invoiceNo,
     invoiceDate: formatDate(invoiceDate),
-    billingPeriod: `${formatDate(billingFrom)} to ${formatDate(billingTo)}`,
+    billingPeriod: monthToBillingPeriod(billingMonth),
     consultantName: consultant,
     consultantAddress,
     consultantPhone,
@@ -97,6 +166,7 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
     wiseTag,
     billingAddress: regionAddresses[region] || '',
     region,
+    currency,
     lineItems,
     notes
   });
@@ -125,13 +195,40 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
 
   const invoice = buildInvoice();
 
+  const CurrencySelect = () => (
+    <HStack gap={2} align="center">
+      <Text fontSize="xs" color="var(--color-text-muted)">Currency:</Text>
+      <Select.Root collection={currencyOptions} value={[currency]} onValueChange={(e) => handleCurrencyChange(e.value[0])} size="sm">
+        <Select.Control>
+          <Select.Trigger minW="80px">
+            <Select.ValueText />
+          </Select.Trigger>
+        </Select.Control>
+        <Select.Positioner>
+          <Select.Content>
+            {currencyOptions.items.map((item) => (
+              <Select.Item item={item} key={item.value}>{item.label}</Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+      </Select.Root>
+    </HStack>
+  );
+
   return (
     <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={8}>
       <VStack align="stretch" gap={6}>
         <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4}>
           <Field.Root>
             <Field.Label fontWeight="500">Consultant Name</Field.Label>
-            <Input placeholder="Enter consultant name" value={consultant} onChange={(e) => setConsultant(e.target.value)} />
+            <HStack gap={2}>
+              <Input flex="1" placeholder="Enter consultant name" value={consultant} onChange={(e) => setConsultant(e.target.value)} />
+              <Button size="sm" variant="outline" onClick={handleSaveProfile} flexShrink={0}
+                borderColor="var(--color-border)" color={profileSaved ? 'green.500' : 'var(--color-text-muted)'}
+                _hover={{ bg: 'bg.subtle' }} minW="90px" fontSize="xs">
+                {profileSaved ? '✓ Saved!' : 'Set default'}
+              </Button>
+            </HStack>
           </Field.Root>
           <Field.Root>
             <Field.Label fontWeight="500">Region</Field.Label>
@@ -180,7 +277,7 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
           </Field.Root>
         </Grid>
 
-        <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
+        <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={4}>
           <Field.Root>
             <Field.Label fontWeight="500">Invoice No.</Field.Label>
             <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />
@@ -191,16 +288,30 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
           </Field.Root>
         </Grid>
 
-        <Grid templateColumns="1fr 1fr" gap={4}>
-          <Field.Root>
-            <Field.Label fontWeight="500">From:</Field.Label>
-            <Input type="date" value={billingFrom} onChange={(e) => setBillingFrom(e.target.value)} />
-          </Field.Root>
-          <Field.Root>
-            <Field.Label fontWeight="500">To:</Field.Label>
-            <Input type="date" value={billingTo} onChange={(e) => setBillingTo(e.target.value)} />
-          </Field.Root>
-        </Grid>
+        <Field.Root>
+          <Field.Label fontWeight="500">Billing Month</Field.Label>
+          <select
+            value={billingMonth}
+            onChange={(e) => setBillingMonth(e.target.value)}
+            style={{
+              border: '1px solid var(--color-border, #e2e8f0)',
+              borderRadius: '6px',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              padding: '8px 12px',
+              fontSize: '14px',
+              width: '100%',
+              outline: 'none'
+            }}
+          >
+            {monthOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <Text fontSize="xs" color="var(--color-text-muted)" mt={1}>
+            Period: {monthToBillingPeriod(billingMonth)}
+          </Text>
+        </Field.Root>
 
         <Field.Root w="100%">
           <Field.Label fontWeight="500">Add Project</Field.Label>
@@ -208,6 +319,11 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
             <ProjectSelector region={region} onSelect={addProjectLine} selectedProjects={selectedProjects} />
           </Box>
         </Field.Root>
+
+        <HStack justify="space-between" align="center">
+          <Text fontWeight="600" fontSize="sm" color="var(--color-text)">Line Items</Text>
+          <CurrencySelect />
+        </HStack>
 
         <VStack align="stretch" gap={4}>
           {lineItems.map((item, idx) => (
@@ -234,12 +350,12 @@ const NewInvoice = ({ getNextInvoiceNumber, onSave }) => {
                   <Input type="number" value={item.hours} onChange={(e) => updateLine(idx, 'hours', parseFloat(e.target.value) || 0)} />
                 </Field.Root>
                 <Field.Root>
-                  <Field.Label fontSize="xs">Rate (USD)</Field.Label>
+                  <Field.Label fontSize="xs">Rate ({currency})</Field.Label>
                   <Input type="number" step="0.01" value={item.rate} onChange={(e) => updateLine(idx, 'rate', parseFloat(e.target.value) || 0)} />
                 </Field.Root>
                 <Field.Root>
                   <Field.Label fontSize="xs">Total</Field.Label>
-                  <Input value={`$${item.total.toFixed(2)}`} readOnly bg="bg.muted" />
+                  <Input value={item.total.toFixed(2)} readOnly bg="bg.muted" />
                 </Field.Root>
               </Grid>
             </Box>

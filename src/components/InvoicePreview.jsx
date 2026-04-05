@@ -2,6 +2,7 @@ import { Box, VStack, HStack, Text, Separator, Grid } from '@chakra-ui/react';
 
 const InvoicePreview = ({ invoice }) => {
   const totalAmount = invoice.lineItems.reduce((sum, item) => sum + item.total, 0);
+  const currency = invoice.currency || 'USD';
 
   return (
     <Box
@@ -54,8 +55,8 @@ const InvoicePreview = ({ invoice }) => {
           <Grid templateColumns="2fr 80px 100px 100px" gap={3} pb={2} borderBottom="2px solid" borderColor="var(--color-border)">
             <Text fontSize="xs" fontWeight="600" color="var(--color-text)">Description</Text>
             <Text fontSize="xs" fontWeight="600" color="var(--color-text)" textAlign="center">Qty (Hrs)</Text>
-            <Text fontSize="xs" fontWeight="600" color="var(--color-text)" textAlign="right">Rate (USD)</Text>
-            <Text fontSize="xs" fontWeight="600" color="var(--color-text)" textAlign="right">Total (USD)</Text>
+            <Text fontSize="xs" fontWeight="600" color="var(--color-text)" textAlign="right">Rate ({currency})</Text>
+            <Text fontSize="xs" fontWeight="600" color="var(--color-text)" textAlign="right">Total ({currency})</Text>
           </Grid>
           {invoice.lineItems.map((item, idx) => (
             <Grid key={idx} templateColumns="2fr 80px 100px 100px" gap={3} py={2} borderBottom="1px solid" borderColor="var(--color-border)">
@@ -64,8 +65,8 @@ const InvoicePreview = ({ invoice }) => {
                 <Text fontSize="xs" color="var(--color-text-muted)" whiteSpace="pre-line">{item.description}</Text>
               </Box>
               <Text fontSize="sm" color="var(--color-text)" textAlign="center">{item.hours}</Text>
-              <Text fontSize="sm" color="var(--color-text)" textAlign="right">${item.rate.toFixed(2)}</Text>
-              <Text fontSize="sm" color="var(--color-text)" textAlign="right">${item.total.toFixed(2)}</Text>
+              <Text fontSize="sm" color="var(--color-text)" textAlign="right">{item.rate.toFixed(2)}</Text>
+              <Text fontSize="sm" color="var(--color-text)" textAlign="right">{item.total.toFixed(2)}</Text>
             </Grid>
           ))}
         </VStack>
@@ -73,9 +74,9 @@ const InvoicePreview = ({ invoice }) => {
         <Separator />
 
         <HStack justify="end" gap={4}>
-          <Text fontSize="lg" fontWeight="600" color="var(--color-text)">TOTAL USD:</Text>
+          <Text fontSize="lg" fontWeight="600" color="var(--color-text)">TOTAL {currency}:</Text>
           <Text fontSize="2xl" fontWeight="700" color="var(--color-primary)">
-            ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Text>
         </HStack>
 

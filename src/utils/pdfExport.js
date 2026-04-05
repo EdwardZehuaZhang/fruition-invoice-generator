@@ -6,24 +6,26 @@ if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
 }
 
 export const exportInvoiceToPDF = (invoice) => {
+  const currency = invoice.currency || 'USD';
+
   const tableBody = [
     [
       { text: 'Description', style: 'tableHeader' },
       { text: 'Qty (Hrs)', style: 'tableHeader', alignment: 'center' },
-      { text: 'Rate (USD)', style: 'tableHeader', alignment: 'right' },
-      { text: 'Total (USD)', style: 'tableHeader', alignment: 'right' }
+      { text: 'Rate (' + currency + ')', style: 'tableHeader', alignment: 'right' },
+      { text: 'Total (' + currency + ')', style: 'tableHeader', alignment: 'right' }
     ]
   ];
 
   invoice.lineItems.forEach(item => {
     const descriptionText = item.projectName
-      ? `${item.projectName}\n${item.description || ''}`
+      ? item.projectName + '\n' + (item.description || '')
       : item.description || '';
     tableBody.push([
       { text: descriptionText, style: item.projectName ? 'lineItemWithProject' : 'lineItem' },
       { text: item.hours.toString(), style: 'lineItemNumber', alignment: 'center' },
-      { text: `$${item.rate.toFixed(2)}`, style: 'lineItemNumber', alignment: 'right' },
-      { text: `$${item.total.toFixed(2)}`, style: 'lineItemNumber', alignment: 'right' }
+      { text: item.rate.toFixed(2), style: 'lineItemNumber', alignment: 'right' },
+      { text: item.total.toFixed(2), style: 'lineItemNumber', alignment: 'right' }
     ]);
   });
 
@@ -43,8 +45,8 @@ export const exportInvoiceToPDF = (invoice) => {
               { text: '', margin: [0, 10, 0, 0] },
               { text: 'Kindly make payment to:', style: 'paymentLabel' },
               { text: 'Wise account', style: 'consultantInfo' },
-              { text: `Name: ${invoice.wiseName || ''}`, style: 'consultantInfo' },
-              { text: `Wisetag: ${invoice.wiseTag || ''}`, style: 'consultantInfo' }
+              { text: 'Name: ' + (invoice.wiseName || ''), style: 'consultantInfo' },
+              { text: 'Wisetag: ' + (invoice.wiseTag || ''), style: 'consultantInfo' }
             ]
           },
           {
@@ -60,7 +62,7 @@ export const exportInvoiceToPDF = (invoice) => {
       },
       { text: 'TO:', style: 'sectionLabel', margin: [0, 0, 0, 5] },
       { text: invoice.billingAddress, style: 'billingAddress', margin: [0, 0, 0, 20] },
-      { text: `Period: ${invoice.billingPeriod}`, style: 'billingPeriod', margin: [0, 0, 0, 30] },
+      { text: 'Period: ' + invoice.billingPeriod, style: 'billingPeriod', margin: [0, 0, 0, 30] },
       {
         table: {
           headerRows: 1,
@@ -83,9 +85,9 @@ export const exportInvoiceToPDF = (invoice) => {
             stack: [
               {
                 columns: [
-                  { text: 'TOTAL USD:', style: 'totalLabel', width: '50%' },
+                  { text: 'TOTAL ' + currency + ':', style: 'totalLabel', width: '50%' },
                   {
-                    text: `$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    text: totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
                     style: 'totalAmount', alignment: 'right', width: '50%'
                   }
                 ],
@@ -118,5 +120,5 @@ export const exportInvoiceToPDF = (invoice) => {
     defaultStyle: { font: 'Roboto' }
   };
 
-  pdfMake.createPdf(docDefinition).download(`Invoice_${invoice.invoiceNo}.pdf`);
+  pdfMake.createPdf(docDefinition).download('Invoice_' + invoice.invoiceNo + '.pdf');
 };

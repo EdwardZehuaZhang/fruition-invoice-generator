@@ -2,6 +2,7 @@ import { Box, Container, Tabs, Heading, HStack, Button, Text, Spinner } from '@c
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import NewInvoice from './components/NewInvoice';
 import InvoiceHistory from './components/InvoiceHistory';
+import ClockifyImport from './components/ClockifyImport';
 import LoginPage from './components/LoginPage';
 import { useInvoiceStorage } from './hooks/useInvoiceStorage';
 import { useAuth } from './hooks/useAuth';
@@ -11,7 +12,6 @@ const AppInner = () => {
   const { authState, login, logout } = useAuth();
   const { invoices, loading, saveInvoice, deleteInvoice, getNextInvoiceNumber } = useInvoiceStorage();
 
-  // Loading auth state
   if (authState === null) {
     return (
       <Box minH="100vh" display="flex" alignItems="center" justifyContent="center" bg="var(--color-bg)">
@@ -20,12 +20,10 @@ const AppInner = () => {
     );
   }
 
-  // Not authenticated (or wrong domain)
   if (!authState.authenticated) {
     return <LoginPage onLogin={login} error={authState.error} />;
   }
 
-  // Authenticated with fruitionservices.io
   return (
     <Box minH="100vh" bg="var(--color-bg)" py={8}>
       <Container maxW="1400px">
@@ -68,6 +66,16 @@ const AppInner = () => {
               New Invoice
             </Tabs.Trigger>
             <Tabs.Trigger
+              value="clockify"
+              px={6} py={3}
+              fontWeight="500"
+              _selected={{ bg: 'var(--color-primary)', color: 'white' }}
+              transition="all 0.2s ease"
+              borderRadius="md"
+            >
+              From Clockify Report
+            </Tabs.Trigger>
+            <Tabs.Trigger
               value="history"
               px={6} py={3}
               fontWeight="500"
@@ -82,6 +90,12 @@ const AppInner = () => {
           <Tabs.Content value="new">
             <Box bg="var(--color-surface)" border="1px solid" borderColor="var(--color-border)" borderRadius="xl" p={{ base: 6, md: 8 }} shadow="sm">
               <NewInvoice getNextInvoiceNumber={getNextInvoiceNumber} onSave={saveInvoice} />
+            </Box>
+          </Tabs.Content>
+
+          <Tabs.Content value="clockify">
+            <Box bg="var(--color-surface)" border="1px solid" borderColor="var(--color-border)" borderRadius="xl" p={{ base: 6, md: 8 }} shadow="sm">
+              <ClockifyImport getNextInvoiceNumber={getNextInvoiceNumber} onSave={saveInvoice} />
             </Box>
           </Tabs.Content>
 
