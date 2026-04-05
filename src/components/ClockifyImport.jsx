@@ -87,35 +87,51 @@ const extractPdfLines = async (file) => {
 const parseClockifyLines = (lines) => {
   const projects = [];
   let currentProject = null;
+  let inDetailSection = false;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
 
-    // Match project line: "ProjectName  28:30  25.50%"
-    // Has time (HH:MM) AND percentage
+    // The detailed breakdown section starts with "Project / Description  Duration"
+    // Everything after this is sub-task detail — stop adding new projects here
+    if (/^Project\s*\/\s*Description/i.test(line)) {
+      inDetailSection = true;
+      currentProject = null;
+      continue;
+    }
+
+    if (inDetailSection) {
+      // In the detail section: match sub-tasks under a known project
+      // Lines are either project headers (match existing project name) or sub-task rows
+      const existingProject = projects.find(p => line.startsWith(p.name));
+      if (existingProject) {
+        currentProject = existingProject;
+        continue;
+      }
+      // Sub-task line: "Task Name  HH:MM"
+      if (currentProject) {
+        const subMatch = line.match(/^(.+?)\s{2,}(\d+:\d+)\s*$/);
+        if (subMatch) {
+          const subName = subMatch[1].trim();
+          if (subName && subName !== currentProject.name && subName !== 'Total' &&
+              subName !== 'Project' && subName !== 'Duration') {
+            currentProject.subTasks.push(subName);
+          }
+        }
+      }
+      continue;
+    }
+
+    // Summary section: match "ProjectName  28:30  25.50%" — these are the real top-level projects
     const projectMatch = line.match(/^(.+?)\s{2,}(\d+:\d+)\s+[\d.]+\s*%/);
     if (projectMatch) {
       const name = projectMatch[1].trim();
-      // Skip header rows
-      if (name === 'Project' || name === 'Duration') continue;
+      if (name === 'Project' || name === 'Duration' || name === 'Total') continue;
       const timeParts = projectMatch[2].split(':').map(Number);
       const hours = timeParts[0] + timeParts[1] / 60;
       currentProject = { name, hours: Math.round(hours * 100) / 100, subTasks: [] };
       projects.push(currentProject);
-      continue;
-    }
-
-    // Match sub-task: indented line with time at end (no percentage)
-    if (currentProject) {
-      // Sub-tasks often appear as "  Task Name  HH:MM"
-      const subMatch = line.match(/^(.+?)\s{2,}(\d+:\d+)\s*$/);
-      if (subMatch) {
-        const subName = subMatch[1].trim();
-        if (subName && subName !== currentProject.name && subName !== 'Total') {
-          currentProject.subTasks.push(subName);
-        }
-      }
     }
   }
 
