@@ -97,11 +97,6 @@ const parseClockifyLines = (lines) => {
     const projectMatch = line.match(/^(.+?)\s{2,}(\d+:\d+)\s+[\d.]+\s*%/);
     if (projectMatch) {
       const name = projectMatch[1].trim();
-      // Skip non-billable
-      if (name.toLowerCase().includes('non-billable')) {
-        currentProject = null;
-        continue;
-      }
       // Skip header rows
       if (name === 'Project' || name === 'Duration') continue;
       const timeParts = projectMatch[2].split(':').map(Number);
